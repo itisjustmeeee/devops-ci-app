@@ -110,7 +110,7 @@ jobs:
               payload = json.loads(Path("health.json").read_text(encoding="utf-8"))
               assert payload == {"status": "ok"}, f"unexpected /health payload: {payload}"
               PY
-              docker exec smmoke id
+              docker exec smoke id
         
           - name: Tag registry image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
