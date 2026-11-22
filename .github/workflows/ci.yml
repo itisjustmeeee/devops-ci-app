@@ -125,7 +125,7 @@ jobs:
             run: printf '%s\n' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
           - name: Push image
-            if: github.event_time == 'push' && github.ref == 'refs/heads/main'
+            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
             run: |
               docker push "${IMAGE_NAME}:${GITHUB_SHA}"
               docker push "${IMAGE_NAME}:latest"
