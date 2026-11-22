@@ -125,8 +125,10 @@ jobs:
 
           - name: Push SHA image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-            run: docker push "${IMAGE_NAME}:${GITHUB_SHA}"
+            run: docker push "${IMAGE_NAME}:${GITHUB_SHA}" | tee push-sha.log
 
           - name: Push latest image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-            run: docker push "${IMAGE_NAME}:latest"
+            run: | 
+              docker push "${IMAGE_NAME}:latest" | tee push-latest.log
+              grep -E 'digest: sha256:' push-sha.log push-latest.log
