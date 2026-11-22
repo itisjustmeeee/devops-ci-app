@@ -129,7 +129,7 @@ jobs:
                 exit 1
               fi
 
-              docker tag "devops-ci-app:${GITHUB_SHA}" "{IMAGE_NAME}:${VERSION}"
+              docker tag "devops-ci-app:${GITHUB_SHA}" "${IMAGE_NAME}:${VERSION}"
 
               {
                 echo "## Docker release"
