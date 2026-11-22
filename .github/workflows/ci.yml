@@ -3,6 +3,7 @@ name: CI - verify and publish image
 on:
     push:
         branches: [main]
+        tags: ['v*']
     pull_request:
         branches: [main]
     workflow_dispatch:
@@ -117,18 +118,46 @@ jobs:
               docker tag "devops-ci-app:${GITHUB_SHA}" "${IMAGE_NAME}:${GITHUB_SHA}"
               docker tag "devops-ci-app:${GITHUB_SHA}" "${IMAGE_NAME}:latest"
 
+          - name: Tag release image
+            if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+            shell: bash
+            run: |
+              VERSION="${GITHUB_REF_NAME#v}"
+
+              if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+                echo "::error::Invalid release tag. Expected vMAJOR.MINOR.PATCH"
+                exit 1
+              fi
+
+              docker tag "devops-ci-app:${GITHUB_SHA}" "{IMAGE_NAME}:${VERSION}"
+
+              {
+                echo "## Docker release"
+                echo "- Git tag: ${GITHUB_REF_NAME}"
+                echo "- Docker tag: ${VERSION}"
+                echo "- Commit: ${GITHUB_SHA}"
+              } >> "$GITHUB_STEP_SUMMARY"
+
+              echo "Git tag: ${GITHUB_REF_NAME}"
+              echo "Docker tag: ${VERSION}"
+              echo "Commit: ${GITHUB_SHA}"
+
           - name: Log in to GHCR
-            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+            if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
             env:
               REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             run: printf '%s\n' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
           - name: Push SHA image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-            run: docker push "${IMAGE_NAME}:${GITHUB_SHA}" | tee push-sha.log
+            run: docker push "${IMAGE_NAME}:${GITHUB_SHA}"
 
           - name: Push latest image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-            run: | 
-              docker push "${IMAGE_NAME}:latest" | tee push-latest.log
-              grep -E 'digest: sha256:' push-sha.log push-latest.log
+            run: docker push "${IMAGE_NAME}:latest"
+
+          - name: Push release image
+            if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+            run: |
+              VERSION="${GITHUB_REF_NAME#v}"
+              docker push "${IMAGE_NAME}:${VERSION}"
