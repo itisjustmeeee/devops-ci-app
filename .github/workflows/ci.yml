@@ -123,8 +123,10 @@ jobs:
               REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             run: printf '%s\n' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
 
-          - name: Push image
+          - name: Push SHA image
             if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-            run: |
-              docker push "${IMAGE_NAME}:${GITHUB_SHA}"
-              docker push "${IMAGE_NAME}:latest"
+            run: docker push "${IMAGE_NAME}:${GITHUB_SHA}"
+
+          - name: Push latest image
+            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+            run: docker push "${IMAGE_NAME}:latest"
