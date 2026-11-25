@@ -6,16 +6,14 @@
     append: true
 
 - name: Pull reviewed application image
-  community.docker.docker_image:
-    name: "{{ app_image }}"
-    tag: "{{ app_tag }}"
-    source: pull
-    state: present
+  community.docker.docker_image_pull:
+    name: "{{ app_image }}@{{ app_image_digest }}"
+    pull: not_present
 
 - name: Run application container
   community.docker.docker_container:
     name: "{{ app_container_name }}"
-    image: "{{ app_image }}:{{ app_tag }}"
+    image: "{{ app_image }}@{{ app_tag }}"
     state: started
     restart_policy: unless-stopped
     published_ports:

@@ -19,8 +19,7 @@
   ansible.posix.authorized_key:
     user: devops
     state: present
-    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/devops_vm.pub') }}"
-    manage_dir: false
+    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519_github.pub') }}"
 
 - name: Allow non-interactive automation sudo
   ansible.builtin.copy:

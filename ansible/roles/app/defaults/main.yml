@@ -1,0 +1,3 @@
+---
+app_image: "nginx"
+app_image_digest: "sha256:6a2ad6cba565a00c5bb03ae2d48080a0c8f5d8c57294afca51502a253bcd344e"
