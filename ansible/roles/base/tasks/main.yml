@@ -1,0 +1,134 @@
+---
+- name: Assert supported VM platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'] == "26.04"
+      - ansible_facts['architecture'] == "x86_64"
+    fail_msg: "Требуется Ubuntu Server 26.04 amd64"
+    success_msg: "Платформа соответствует требованиям"
+
+- name: Remove incorrect OpenSSL provider mapping
+  ansible.builtin.lineinfile:
+    path: /etc/ssl/openssl.cnf
+    regexp: '^\s*system_default\s*=\s*system_default_sect\s*$'
+    state: absent
+    backup: true
+
+- name: Configure OpenSSL SSL section
+  ansible.builtin.lineinfile:
+    path: /etc/ssl/openssl.cnf
+    regexp: '^ssl_conf\s*='
+    line: 'ssl_conf = ssl_sect'
+    insertafter: '^\[openssl_init\]$'
+
+- name: Set OpenSSL system default TLS version
+  ansible.builtin.blockinfile:
+    path: /etc/ssl/openssl.cnf
+    insertbefore: '^\[system_default_sect\]$'
+    marker: "# {mark} ANSIBLE TLS 1.2 POLICY"
+    block: |
+      [ssl_sect]
+      system_default = system_default_sect
+
+- name: Ensure local OpenSSL configuration directory exists
+  ansible.builtin.file:
+    path: /etc/ssl/openssl.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install base packages and remote module dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - openssh-server
+      - ufw
+      - python3-debian
+      - python3-requests
+      - crypto-config
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure Docker keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Download Docker official GPG key using TLS 1.2
+  ansible.builtin.command:
+    argv:
+      - curl
+      - --fail
+      - --location
+      - --silent
+      - --show-error
+      - --tlsv1.2
+      - --tls-max
+      - "1.2"
+      - --connect-timeout
+      - "10"
+      - --max-time
+      - "60"
+      - --output
+      - /tmp/docker.asc
+      - https://download.docker.com/linux/ubuntu/gpg
+  register: docker_gpg_download
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: docker_gpg_download.rc == 0
+
+- name: Install Docker official GPG key
+  ansible.builtin.copy:
+    src: /tmp/docker.asc
+    dest: /etc/apt/keyrings/docker.asc
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Add Docker official repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types:
+      - deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components:
+      - stable
+    architectures:
+      - amd64
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: present
+
+- name: Update APT package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+    update_cache_retries: 1
+    update_cache_retry_max_delay: 5
+
+- name: Install Docker Engine
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: false
+
+- name: Enable Docker service
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
